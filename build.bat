@@ -20,7 +20,7 @@ echo.
 echo [INFO] 开始打包...
 echo.
 
-REM 使用 spec 文件进行打包
+REM 使用 spec 文件进行打包（包含资源文件）
 pyinstaller --clean build.spec
 
 if errorlevel 1 (
@@ -36,6 +36,7 @@ echo [SUCCESS] 打包完成！
 echo ========================================
 echo.
 echo 可执行文件位于: dist\飞书多维表格元数据工具.exe
+echo 视频文件已包含在打包中！
 echo.
 
 pause
