@@ -1,14 +1,15 @@
 # 飞书多维表格数据管理工具
 
-一个基于 PyQt5 的图形界面工具，用于获取飞书（Lark）多维表格的完整数据，包括表结构、字段配置、记录内容、仪表盘、工作流和高级权限等。
+一个基于 PyQt5 的图形界面工具，用于获取飞书（Lark）多维表格的完整数据，包括表结构、字段配置、记录内容、仪表盘、工作流、高级权限和表单配置等。
 
 ## 功能特性
 
-- **四大功能模块**：
+- **五大功能模块**：
   - 📊 数据表：获取表结构、字段配置和记录内容
   - 📈 仪表盘：提取仪表盘配置快照
   - 🔄 工作流：获取工作流配置信息
   - 🔐 高级权限：提取角色和权限配置
+  - 📝 表单：提取表单配置和字段信息
 
 - **多种认证方式**：支持 Token、OAuth 和 Cookie 三种认证方式
 - **文本对比工具**：内置文本对比功能，支持并排显示差异
@@ -31,7 +32,7 @@ table_meta_data/
 │   ├── styles.py        # 界面样式
 │   ├── main_window.py   # 主窗口
 │   ├── table_panel.py   # 数据表面板
-│   ├── simple_panel.py  # 通用面板（仪表盘、工作流）
+│   ├── simple_panel.py  # 通用面板（仪表盘、工作流、表单）
 │   ├── permission_panel.py  # 高级权限面板
 │   ├── result_panel.py  # 结果显示面板
 │   ├── text_diff_dialog.py  # 文本对比对话框
@@ -42,13 +43,14 @@ table_meta_data/
 │   ├── oauth_worker.py  # OAuth 认证线程
 │   ├── cookie_worker.py # Cookie 获取线程
 │   └── fetch_worker.py  # 数据获取线程
-└── api/                 # API 接口模块
-    ├── __init__.py
-    ├── feishu_api.py    # 开放 API 接口（数据表）
-    ├── feishu_cookie_api.py  # Cookie 方式接口
-    ├── feishu_dashboard_api.py  # 仪表盘接口
-    ├── feishu_workflow_api.py   # 工作流接口
-    └── feishu_permission_api.py # 高级权限接口
+├── api/                 # API 接口模块
+│   ├── __init__.py
+│   ├── feishu_api.py    # 开放 API 接口（数据表）
+│   ├── feishu_cookie_api.py  # Cookie 方式接口
+│   ├── feishu_dashboard_api.py  # 仪表盘接口
+│   ├── feishu_workflow_api.py   # 工作流接口
+│   ├── feishu_permission_api.py # 高级权限接口
+│   └── feishu_form_api.py       # 表单接口
 ```
 
 ## 安装依赖
@@ -80,6 +82,7 @@ python main.py
 - 📈 仪表盘
 - 🔄 工作流
 - 🔐 高级权限
+- 📝 表单
 
 ### 3. 配置认证
 
@@ -94,15 +97,22 @@ python main.py
 3. 输入 App ID 和 App Secret
 4. 点击"浏览器一键授权"进行 OAuth 认证
 
-#### Cookie 方式（用于仪表盘、工作流）
+#### Cookie 方式（用于仪表盘、工作流、表单）
 - **自动获取**：点击"启动浏览器"，在打开的浏览器中登录飞书后点击"已登录"
 - **手动输入**：从浏览器开发者工具中复制 Cookie 并粘贴
 
 ### 4. 获取数据
 
+#### 数据表
 1. 输入飞书多维表格链接
-2. （数据表模块可选）勾选是否需要获取记录内容
-3. 点击"获取数据"或对应按钮
+2. （可选）勾选是否需要获取记录内容
+3. 选择认证方式（Token/OAuth/Cookie）并配置
+4. 点击"获取数据"
+
+#### 仪表盘/工作流/表单
+1. 输入对应链接（表单链接格式：`https://bytedance.larkoffice.com/share/base/form/...`）
+2. 使用 Cookie 方式认证
+3. 点击"获取仪表盘snapshot"、"获取工作流数据"或"获取表单数据"
 
 ### 5. 文本对比功能
 

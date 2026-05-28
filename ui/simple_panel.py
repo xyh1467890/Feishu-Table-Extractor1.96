@@ -123,7 +123,11 @@ class SimplePanel(QWidget):
         layout.addWidget(target_title)
         
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("https://xxx.feishu.cn/base/...")
+        # 根据模块类型设置不同的 URL 提示
+        if self.module_name == "表单":
+            self.url_input.setPlaceholderText("https://bytedance.larkoffice.com/share/base/form/...")
+        else:
+            self.url_input.setPlaceholderText("https://xxx.feishu.cn/base/...")
         self.url_input.setObjectName("url_input")
         layout.addWidget(self.url_input)
         

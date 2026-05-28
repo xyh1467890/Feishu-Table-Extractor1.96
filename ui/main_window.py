@@ -43,6 +43,7 @@ class FeishuBitableApp(QMainWindow):
         self.dashboard_panel = None
         self.workflow_panel = None
         self.permission_panel = None
+        self.form_panel = None
         self.result_panel = None
         self.search_logic = None
         
@@ -110,6 +111,7 @@ class FeishuBitableApp(QMainWindow):
         self.create_nav_button(module_layout, "📈", "仪表盘", "dashboard")
         self.create_nav_button(module_layout, "🔄", "工作流", "workflow")
         self.create_nav_button(module_layout, "🔐", "高级权限", "permission")
+        self.create_nav_button(module_layout, "📝", "表单", "form")
         
         module_layout.addStretch()
         nav_layout.addWidget(self.module_nav)
@@ -163,7 +165,8 @@ class FeishuBitableApp(QMainWindow):
             "table": 0,
             "dashboard": 1,
             "workflow": 2,
-            "permission": 3
+            "permission": 3,
+            "form": 4
         }.get(module_id, 0)
         self.module_stack.setCurrentIndex(panel_index)
         
@@ -171,7 +174,8 @@ class FeishuBitableApp(QMainWindow):
             "table": "📊 数据表",
             "dashboard": "📈 仪表盘",
             "workflow": "🔄 工作流",
-            "permission": "🔐 高级权限"
+            "permission": "🔐 高级权限",
+            "form": "📝 表单"
         }
         self.module_title.setText(module_titles.get(module_id, "📊 数据表"))
         
@@ -228,11 +232,13 @@ class FeishuBitableApp(QMainWindow):
         self.dashboard_panel = SimplePanel(self, "仪表盘")
         self.workflow_panel = SimplePanel(self, "工作流")
         self.permission_panel = PermissionPanel(self)
+        self.form_panel = SimplePanel(self, "表单")
         
         self.module_stack.addWidget(self.table_panel)
         self.module_stack.addWidget(self.dashboard_panel)
         self.module_stack.addWidget(self.workflow_panel)
         self.module_stack.addWidget(self.permission_panel)
+        self.module_stack.addWidget(self.form_panel)
         
         left_panel_layout.addWidget(self.module_stack)
         content_layout.addWidget(left_panel_container)
@@ -263,6 +269,8 @@ class FeishuBitableApp(QMainWindow):
             return self.workflow_panel
         elif self.current_module == "permission":
             return self.permission_panel
+        elif self.current_module == "form":
+            return self.form_panel
         return None
     
     def on_manual_info_link_clicked(self, link):
@@ -551,6 +559,44 @@ class FeishuBitableApp(QMainWindow):
             self.permission_thread.finished.connect(lambda r: self.on_permission_fetch_finished(r, current_panel))
             self.permission_thread.error.connect(lambda err: self.on_fetch_error(err, current_panel))
             self.permission_thread.start()
+        
+        elif self.current_module == "form":
+            # 表单 - 使用Cookie方法
+            cookie = current_panel.cookie_input.text().strip()
+            if not cookie:
+                QMessageBox.warning(self, "提示", "请输入飞书 Cookie")
+                current_panel.fetch_button.setEnabled(True)
+                return
+            
+            current_panel.progress_label.setText("正在获取表单配置...")
+            
+            # 创建表单获取线程
+            from PyQt5.QtCore import QThread, pyqtSignal
+            
+            class FormFetchThread(QThread):
+                progress = pyqtSignal(str)
+                finished = pyqtSignal(object)
+                error = pyqtSignal(str)
+                
+                def __init__(self, url, cookie):
+                    super().__init__()
+                    self.url = url
+                    self.cookie = cookie
+                
+                def run(self):
+                    try:
+                        from api.feishu_form_api import extract_form_info
+                        self.progress.emit("正在提取表单数据...")
+                        result = extract_form_info(self.url, self.cookie)
+                        self.finished.emit(result)
+                    except Exception as e:
+                        self.error.emit(str(e))
+            
+            self.form_thread = FormFetchThread(feishu_url, cookie)
+            self.form_thread.progress.connect(lambda msg: current_panel.progress_label.setText(msg))
+            self.form_thread.finished.connect(lambda r: self.on_form_fetch_finished(r, current_panel))
+            self.form_thread.error.connect(lambda err: self.on_fetch_error(err, current_panel))
+            self.form_thread.start()
     
     def on_workflow_fetch_finished(self, result, current_panel):
         """工作流提取完成处理"""
@@ -576,6 +622,17 @@ class FeishuBitableApp(QMainWindow):
     
     def on_permission_fetch_finished(self, result, current_panel):
         """高级权限提取完成处理"""
+        self.current_result = result
+        self.original_json = json.dumps(result, ensure_ascii=False, indent=2)
+        self.result_panel.result_text.setText(self.original_json)
+        self.search_logic.set_original_text(self.original_json)
+        self.result_panel.export_button.setEnabled(True)
+        current_panel.fetch_button.setEnabled(True)
+        current_panel.progress_label.setStyleSheet("color: #27ae60;")
+        current_panel.progress_label.setText("✓ 获取成功！")
+    
+    def on_form_fetch_finished(self, result, current_panel):
+        """表单提取完成处理"""
         self.current_result = result
         self.original_json = json.dumps(result, ensure_ascii=False, indent=2)
         self.result_panel.result_text.setText(self.original_json)
