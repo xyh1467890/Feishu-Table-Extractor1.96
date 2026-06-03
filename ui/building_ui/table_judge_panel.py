@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 
-from building_spec.dashboard_judge import DashboardSingleJudge
+from building_spec.table_judge import TableSingleJudge
 
 
 class TableJudgePanel(QWidget):
@@ -20,13 +20,13 @@ class TableJudgePanel(QWidget):
         self.parent_window = parent
         self.setObjectName("module_panel")
         
-        self.table_single_judge = DashboardSingleJudge()
+        self.table_single_judge = TableSingleJudge()
         self.init_ui()
     
     def init_ui(self):
         """初始化 UI"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 10, 20, 15)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(15)
         
         self.setStyleSheet("""
@@ -77,7 +77,7 @@ class TableJudgePanel(QWidget):
         
         # Query
         query_label = QLabel("Query（用户需求，多轮每轮一行）")
-        query_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; background-color: white;")
+        query_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; margin-bottom: 6px; background-color: white;")
         layout.addWidget(query_label)
         
         self.query_input = QTextEdit()
@@ -105,11 +105,12 @@ class TableJudgePanel(QWidget):
         
         # Before Base Token 和 Base Tokens 在同一行
         tokens_row = QHBoxLayout()
+        tokens_row.setSpacing(14)
         
         # Before Base Token
         before_layout = QVBoxLayout()
         before_label = QLabel("Before Base Token")
-        before_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; background-color: white;")
+        before_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; margin-bottom: 6px; background-color: white;")
         before_label.setMinimumHeight(22)
         before_layout.addWidget(before_label)
         
@@ -141,7 +142,7 @@ class TableJudgePanel(QWidget):
         # Base Tokens
         base_layout = QVBoxLayout()
         base_label = QLabel("Base Tokens（可选，多轮每轮一行）")
-        base_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; background-color: white;")
+        base_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; margin-bottom: 6px; background-color: white;")
         base_label.setMinimumHeight(22)
         base_layout.addWidget(base_label)
         
@@ -169,8 +170,8 @@ class TableJudgePanel(QWidget):
         """)
         base_layout.addWidget(self.base_input)
         tokens_row.addLayout(base_layout)
-        
         layout.addLayout(tokens_row)
+        layout.addSpacing(20)
         
         # 运行按钮
         self.run_btn = QPushButton("运行单条测试")
@@ -225,6 +226,7 @@ class TableJudgePanel(QWidget):
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
         self.result_text.setPlaceholderText("响应体将显示在这里...")
+        self.result_text.setMinimumHeight(160)
         self.result_text.setStyleSheet("""
             QTextEdit {
                 border: 2px solid #e5e7eb;
@@ -281,7 +283,7 @@ class TableJudgePanel(QWidget):
         result = self.table_single_judge.send_request(
             queries=queries,
             before_base_token=before_base_token,
-            after_base_tokens=base_tokens,
+            base_tokens=base_tokens,
             agent="table"
         )
         

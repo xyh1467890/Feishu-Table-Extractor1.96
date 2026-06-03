@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (
 from ui.text_diff_dialog import TextDiffDialog
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QDesktopWidget
 
 from ui.styles import APP_STYLE
 from ui.table_panel import TablePanel, resource_path
@@ -29,7 +30,7 @@ class FeishuBitableApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("飞书多维表格数据管理工具")
-        self.resize(1300, 900)
+        self.resize(1300, 920)
         self.setMinimumSize(1100, 700)
         
         self.current_module = "table"
@@ -50,6 +51,12 @@ class FeishuBitableApp(QMainWindow):
         self.search_logic = None
         
         self.init_ui()
+        
+        # 窗口居中显示
+        qr = self.frameGeometry()
+        cp = QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
     
     def init_ui(self):
         QApplication.instance().setStyle('Fusion')

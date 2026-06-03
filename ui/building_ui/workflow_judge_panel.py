@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 
-from building_spec.dashboard_judge import DashboardSingleJudge
+from building_spec.workflow_judge import WorkflowSingleJudge
 
 
 class WorkflowJudgePanel(QWidget):
@@ -20,13 +20,13 @@ class WorkflowJudgePanel(QWidget):
         self.parent_window = parent
         self.setObjectName("module_panel")
         
-        self.dashboard_single_judge = DashboardSingleJudge()
+        self.workflow_single_judge = WorkflowSingleJudge()
         self.init_ui()
     
     def init_ui(self):
         """初始化 UI"""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 10, 20, 15)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(15)
         
         self.setStyleSheet("""
@@ -77,7 +77,7 @@ class WorkflowJudgePanel(QWidget):
         
         # Queries
         queries_label = QLabel("Queries（多轮对话每轮一行）")
-        queries_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; background-color: white;")
+        queries_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; margin-bottom: 6px; background-color: white;")
         layout.addWidget(queries_label)
         
         self.queries_input = QTextEdit()
@@ -105,11 +105,12 @@ class WorkflowJudgePanel(QWidget):
         
         # Before Base Token 和 After Base Tokens 在同一行
         tokens_row = QHBoxLayout()
+        tokens_row.setSpacing(14)
         
         # Before Base Token
         before_layout = QVBoxLayout()
         before_label = QLabel("Before Base Token")
-        before_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; background-color: white;")
+        before_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; margin-bottom: 6px; background-color: white;")
         before_label.setMinimumHeight(22)
         before_layout.addWidget(before_label)
         
@@ -141,7 +142,7 @@ class WorkflowJudgePanel(QWidget):
         # After Base Tokens
         after_layout = QVBoxLayout()
         after_label = QLabel("After Base Tokens（可选，多轮每轮一行）")
-        after_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; background-color: white;")
+        after_label.setStyleSheet("color: #64748b; font-size: 13px; font-weight: 600; margin-bottom: 6px; background-color: white;")
         after_label.setMinimumHeight(22)
         after_layout.addWidget(after_label)
         
@@ -169,8 +170,8 @@ class WorkflowJudgePanel(QWidget):
         """)
         after_layout.addWidget(self.after_input)
         tokens_row.addLayout(after_layout)
-        
         layout.addLayout(tokens_row)
+        layout.addSpacing(20)
         
         # 运行按钮
         self.run_btn = QPushButton("运行单条测试")
@@ -225,6 +226,7 @@ class WorkflowJudgePanel(QWidget):
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
         self.result_text.setPlaceholderText("响应体将显示在这里...")
+        self.result_text.setMinimumHeight(160)
         self.result_text.setStyleSheet("""
             QTextEdit {
                 border: 2px solid #e5e7eb;
@@ -278,7 +280,7 @@ class WorkflowJudgePanel(QWidget):
         after_base_tokens = [a.strip() for a in after_tokens_text.split('\n')] if after_tokens_text else None
         
         # 发送请求
-        result = self.dashboard_single_judge.send_request(
+        result = self.workflow_single_judge.send_request(
             queries=queries,
             before_base_token=before_base_token,
             after_base_tokens=after_base_tokens,

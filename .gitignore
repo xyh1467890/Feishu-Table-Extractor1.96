@@ -60,3 +60,11 @@ get_user_access_token.mp4
 
 # User config (contains API keys)
 config/user_config.json
+
+# Excel files (sensitive data)
+*.xlsx
+*.xls
+*.csv
+
+# Exclude doc_base folder
+doc_base/

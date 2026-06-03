@@ -1,6 +1,7 @@
 """
-Dashboard 评测逻辑模块
-负责处理 Dashboard 场景的单条和批量测试
+Permission 评测逻辑模块
+负责处理 Permission 场景的单条和批量测试
+支持多轮对话格式
 """
 import requests
 import json
@@ -14,21 +15,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import get_judge_api_key, JUDGE_API_URL
 
 
-class DashboardSingleJudge:
-    """Dashboard 单条测试类"""
+class PermissionSingleJudge:
+    """Permission 单条测试类"""
     
     def __init__(self):
         self.is_running = False
     
-    def send_request(self, queries, before_base_token, after_base_tokens=None, 
-                     agent="dashboard", concurrency=5):
+    def send_request(self, queries, source_base_token, base_tokens=None, 
+                     agent="permission", concurrency=5):
         """
-        发送 Dashboard 单条测试请求
+        发送 Permission 单条测试请求
         
         Args:
             queries: 查询列表（支持多轮），例如 ["第一轮", "第二轮"]
-            before_base_token: 前置的 Base Token
-            after_base_tokens: 后置的 Base Token 列表（多轮），如果不传则和 queries 长度一致
+            source_base_token: 源 Base Token
+            base_tokens: 目标 Base Token 列表（多轮），如果不传则和 queries 长度一致
             agent: Agent 类型
             concurrency: 并发数
         
@@ -44,29 +45,29 @@ class DashboardSingleJudge:
                 "message": "请在 Building 机评界面中配置 JUDGE_API_KEY"
             }
         
-        # 如果没有提供 after_base_tokens，创建一个空列表
-        if after_base_tokens is None:
-            after_base_tokens = [""] * len(queries)
+        # 如果没有提供 base_tokens，创建一个空列表
+        if base_tokens is None:
+            base_tokens = [""] * len(queries)
         
-        # 确保 after_base_tokens 的长度和 queries 一致
-        if len(after_base_tokens) < len(queries):
-            after_base_tokens.extend([""] * (len(queries) - len(after_base_tokens)))
-        elif len(after_base_tokens) > len(queries):
-            after_base_tokens = after_base_tokens[:len(queries)]
+        # 确保 base_tokens 的长度和 queries 一致
+        if len(base_tokens) < len(queries):
+            base_tokens.extend([""] * (len(queries) - len(base_tokens)))
+        elif len(base_tokens) > len(queries):
+            base_tokens = base_tokens[:len(queries)]
         
         headers = {
             "Content-Type": "application/json",
             "x-judge-api-key": api_key
         }
         
-        # 构建请求体 - Dashboard 特殊格式（不需要 mode）
+        # 构建请求体 - Permission 特殊格式（支持多轮对话，不需要 mode）
         data = {
             "agent": agent,
             "cases": [{
-                "id": "dashboard_multi_turn_001",
+                "id": "permission_multi_turn_001",
                 "query": queries,
-                "beforeBaseToken": before_base_token,
-                "afterBaseToken": after_base_tokens,
+                "sourceBaseToken": source_base_token,
+                "baseToken": base_tokens,
                 "options": {
                     "concurrency": concurrency
                 }
@@ -115,20 +116,20 @@ class DashboardSingleJudge:
         return result
 
 
-class DashboardBatchJudge:
-    """Dashboard 批量测试类"""
+class PermissionBatchJudge:
+    """Permission 批量测试类"""
     
     def __init__(self):
         self.is_running = False
     
     def _read_cases_from_csv(self, csv_path):
         """
-        从 CSV 文件读取 Dashboard 测试用例
+        从 CSV 文件读取 Permission 测试用例
         
         CSV 格式要求:
-        - query: 查询内容（多轮用换行分隔）
-        - beforeBaseToken: 前置的 Base Token
-        - afterBaseToken: 后置的 Base Token（多轮用换行分隔）
+            - query: 查询内容（多轮用换行分隔）
+            - sourceBaseToken: 源 Base Token
+            - baseToken: 目标 Base Token（多轮用换行分隔）
         
         Args:
             csv_path: CSV 文件路径
@@ -163,29 +164,29 @@ class DashboardBatchJudge:
         # 查找表头和数据
         headers = rows[0] if rows else []
         query_col = None
-        before_base_token_col = None
-        after_base_token_col = None
+        source_base_token_col = None
+        base_token_col = None
         
         for idx, header in enumerate(headers):
             header_lower = str(header).lower()
             if header and "query" in header_lower:
                 query_col = idx
-            if header and ("beforebasetoken" in header_lower or "before_base_token" in header_lower):
-                before_base_token_col = idx
-            if header and ("afterbasetoken" in header_lower or "after_base_token" in header_lower):
-                after_base_token_col = idx
+            if header and ("sourcebasetoken" in header_lower or "source_base_token" in header_lower):
+                source_base_token_col = idx
+            if header and ("basetoken" in header_lower or "base_token" in header_lower):
+                base_token_col = idx
         
         # 获取实际的表头名称列表
         actual_headers = [str(h) if h else "空" for h in headers]
         
         if query_col is None:
             raise Exception(f"未找到 query 列，请确保 CSV 文件中包含名为 'query' 的列。当前表头: {', '.join(actual_headers)}")
-        if before_base_token_col is None:
-            raise Exception(f"未找到 beforeBaseToken 列，请确保 CSV 文件中包含名为 'beforeBaseToken' 或 'before_base_token' 的列。当前表头: {', '.join(actual_headers)}")
+        if source_base_token_col is None:
+            raise Exception(f"未找到 sourceBaseToken 列，请确保 CSV 文件中包含名为 'sourceBaseToken' 或 'source_base_token' 的列。当前表头: {', '.join(actual_headers)}")
         
         # 读取数据行
         for i, row in enumerate(rows[1:], 1):
-            if not row or len(row) <= max(query_col, before_base_token_col):
+            if not row or len(row) <= max(query_col, source_base_token_col):
                 continue
             
             # 获取查询内容（支持多轮，用换行分隔）
@@ -195,26 +196,26 @@ class DashboardBatchJudge:
             if not queries:
                 continue
             
-            # 获取 beforeBaseToken
-            before_base_token = str(row[before_base_token_col] or "") if len(row) > before_base_token_col else ""
+            # 获取 sourceBaseToken
+            source_base_token = str(row[source_base_token_col] or "") if len(row) > source_base_token_col else ""
             
-            # 获取 afterBaseToken（支持多轮，用换行分隔）
-            after_base_tokens = []
-            if after_base_token_col is not None and len(row) > after_base_token_col:
-                after_str = str(row[after_base_token_col] or "")
-                after_base_tokens = [a.strip() for a in after_str.split('\n')]
+            # 获取 baseToken（支持多轮，用换行分隔）
+            base_tokens = []
+            if base_token_col is not None and len(row) > base_token_col:
+                base_token_str = str(row[base_token_col] or "")
+                base_tokens = [b.strip() for b in base_token_str.split('\n')]
             
-            # 确保 after_base_tokens 和 queries 长度一致
-            while len(after_base_tokens) < len(queries):
-                after_base_tokens.append("")
-            if len(after_base_tokens) > len(queries):
-                after_base_tokens = after_base_tokens[:len(queries)]
+            # 确保 base_tokens 和 queries 长度一致
+            while len(base_tokens) < len(queries):
+                base_tokens.append("")
+            if len(base_tokens) > len(queries):
+                base_tokens = base_tokens[:len(queries)]
             
             case = {
-                "id": f"dashboard_test_{i:03d}",
+                "id": f"permission_test_{i:03d}",
                 "query": queries,
-                "beforeBaseToken": before_base_token,
-                "afterBaseToken": after_base_tokens
+                "sourceBaseToken": source_base_token,
+                "baseToken": base_tokens
             }
             cases.append(case)
         
@@ -222,7 +223,7 @@ class DashboardBatchJudge:
     
     def _read_cases_from_excel(self, excel_path):
         """
-        从 Excel 文件读取 Dashboard 测试用例
+        从 Excel 文件读取 Permission 测试用例
         
         Args:
             excel_path: Excel 文件路径
@@ -291,29 +292,29 @@ class DashboardBatchJudge:
         # 查找表头和数据
         headers = rows[0] if rows else []
         query_col = None
-        before_base_token_col = None
-        after_base_token_col = None
+        source_base_token_col = None
+        base_token_col = None
         
         for idx, header in enumerate(headers):
             header_lower = str(header).lower() if header else ""
             if header and "query" in header_lower:
                 query_col = idx
-            if header and ("beforebasetoken" in header_lower or "before_base_token" in header_lower):
-                before_base_token_col = idx
-            if header and ("afterbasetoken" in header_lower or "after_base_token" in header_lower):
-                after_base_token_col = idx
+            if header and ("sourcebasetoken" in header_lower or "source_base_token" in header_lower):
+                source_base_token_col = idx
+            if header and ("basetoken" in header_lower or "base_token" in header_lower):
+                base_token_col = idx
         
         # 获取实际的表头名称列表
         actual_headers = [str(h) if h else "空" for h in headers]
         
         if query_col is None:
             raise Exception(f"未找到 query 列，请确保 Excel 文件中包含名为 'query' 的列。当前表头: {', '.join(actual_headers)}")
-        if before_base_token_col is None:
-            raise Exception(f"未找到 beforeBaseToken 列，请确保 Excel 文件中包含名为 'beforeBaseToken' 或 'before_base_token' 的列。当前表头: {', '.join(actual_headers)}")
+        if source_base_token_col is None:
+            raise Exception(f"未找到 sourceBaseToken 列，请确保 Excel 文件中包含名为 'sourceBaseToken' 或 'source_base_token' 的列。当前表头: {', '.join(actual_headers)}")
         
         # 读取数据行
         for i, row in enumerate(rows[1:], 1):
-            if not row or len(row) <= max(query_col, before_base_token_col):
+            if not row or len(row) <= max(query_col, source_base_token_col):
                 continue
             
             # 获取查询内容（支持多轮，用换行分隔）
@@ -323,26 +324,26 @@ class DashboardBatchJudge:
             if not queries:
                 continue
             
-            # 获取 beforeBaseToken
-            before_base_token = str(row[before_base_token_col] or "") if len(row) > before_base_token_col else ""
+            # 获取 sourceBaseToken
+            source_base_token = str(row[source_base_token_col] or "") if len(row) > source_base_token_col else ""
             
-            # 获取 afterBaseToken（支持多轮，用换行分隔）
-            after_base_tokens = []
-            if after_base_token_col is not None and len(row) > after_base_token_col:
-                after_str = str(row[after_base_token_col] or "")
-                after_base_tokens = [a.strip() for a in after_str.split('\n')]
+            # 获取 baseToken（支持多轮，用换行分隔）
+            base_tokens = []
+            if base_token_col is not None and len(row) > base_token_col:
+                base_token_str = str(row[base_token_col] or "")
+                base_tokens = [b.strip() for b in base_token_str.split('\n')]
             
-            # 确保 after_base_tokens 和 queries 长度一致
-            while len(after_base_tokens) < len(queries):
-                after_base_tokens.append("")
-            if len(after_base_tokens) > len(queries):
-                after_base_tokens = after_base_tokens[:len(queries)]
+            # 确保 base_tokens 和 queries 长度一致
+            while len(base_tokens) < len(queries):
+                base_tokens.append("")
+            if len(base_tokens) > len(queries):
+                base_tokens = base_tokens[:len(queries)]
             
             case = {
-                "id": f"dashboard_test_{i:03d}",
+                "id": f"permission_test_{i:03d}",
                 "query": queries,
-                "beforeBaseToken": before_base_token,
-                "afterBaseToken": after_base_tokens
+                "sourceBaseToken": source_base_token,
+                "baseToken": base_tokens
             }
             cases.append(case)
         
@@ -350,7 +351,7 @@ class DashboardBatchJudge:
     
     def read_cases_from_file(self, file_path):
         """
-        从文件读取 Dashboard 测试用例（支持 CSV 和 Excel 格式）
+        从文件读取 Permission 测试用例（支持 CSV 和 Excel 格式）
         
         Args:
             file_path: 文件路径
@@ -378,13 +379,13 @@ class DashboardBatchJudge:
                 return self._read_cases_from_excel(file_path)
             except:
                 # 都失败了，抛出包含两种尝试的错误
-                raise Exception(f"无法解析文件: {file_path}\n"
-                              f"CSV 解析错误: {str(csv_error)}\n"
+                raise Exception(f"无法解析文件：{file_path}\n"
+                              f"CSV 解析错误：{str(csv_error)}\n"
                               f"请确保文件是正确的 CSV 或 Excel 格式")
     
-    def send_request(self, cases, agent="dashboard", concurrency=5):
+    def send_request(self, cases, agent="permission", concurrency=5):
         """
-        发送 Dashboard 批量测试请求
+        发送 Permission 批量测试请求
         
         Args:
             cases: 测试用例列表
@@ -408,7 +409,7 @@ class DashboardBatchJudge:
             "x-judge-api-key": api_key
         }
         
-        # 构建请求体 - Dashboard 特殊格式（不需要 mode）
+        # 构建请求体 - Permission 特殊格式（支持多轮对话，不需要 mode）
         # 给每个 case 加上 options
         cases_with_options = []
         for case in cases:
@@ -452,14 +453,14 @@ class DashboardBatchJudge:
             elif 200 <= response.status_code < 300:
                 result["message"] = "请求成功"
             else:
-                result["message"] = f"请求返回状态码: {response.status_code}"
+                result["message"] = f"请求返回状态码：{response.status_code}"
                 
         except requests.exceptions.RequestException as e:
             result = {
                 "success": False,
                 "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 "error": str(e),
-                "message": f"网络请求异常: {e}"
+                "message": f"网络请求异常：{e}"
             }
         
         return result

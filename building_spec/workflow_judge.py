@@ -1,6 +1,7 @@
 """
-Dashboard 评测逻辑模块
-负责处理 Dashboard 场景的单条和批量测试
+Workflow 评测逻辑模块
+负责处理 Workflow 场景的单条和批量测试
+支持多轮对话格式
 """
 import requests
 import json
@@ -14,16 +15,16 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import get_judge_api_key, JUDGE_API_URL
 
 
-class DashboardSingleJudge:
-    """Dashboard 单条测试类"""
+class WorkflowSingleJudge:
+    """Workflow 单条测试类"""
     
     def __init__(self):
         self.is_running = False
     
     def send_request(self, queries, before_base_token, after_base_tokens=None, 
-                     agent="dashboard", concurrency=5):
+                     agent="workflow", concurrency=5):
         """
-        发送 Dashboard 单条测试请求
+        发送 Workflow 单条测试请求
         
         Args:
             queries: 查询列表（支持多轮），例如 ["第一轮", "第二轮"]
@@ -59,11 +60,11 @@ class DashboardSingleJudge:
             "x-judge-api-key": api_key
         }
         
-        # 构建请求体 - Dashboard 特殊格式（不需要 mode）
+        # 构建请求体 - Workflow 特殊格式（支持多轮对话，不需要 mode）
         data = {
             "agent": agent,
             "cases": [{
-                "id": "dashboard_multi_turn_001",
+                "id": "workflow_multi_turn_001",
                 "query": queries,
                 "beforeBaseToken": before_base_token,
                 "afterBaseToken": after_base_tokens,
@@ -115,15 +116,15 @@ class DashboardSingleJudge:
         return result
 
 
-class DashboardBatchJudge:
-    """Dashboard 批量测试类"""
+class WorkflowBatchJudge:
+    """Workflow 批量测试类"""
     
     def __init__(self):
         self.is_running = False
     
     def _read_cases_from_csv(self, csv_path):
         """
-        从 CSV 文件读取 Dashboard 测试用例
+        从 CSV 文件读取 Workflow 测试用例
         
         CSV 格式要求:
         - query: 查询内容（多轮用换行分隔）
@@ -211,7 +212,7 @@ class DashboardBatchJudge:
                 after_base_tokens = after_base_tokens[:len(queries)]
             
             case = {
-                "id": f"dashboard_test_{i:03d}",
+                "id": f"workflow_test_{i:03d}",
                 "query": queries,
                 "beforeBaseToken": before_base_token,
                 "afterBaseToken": after_base_tokens
@@ -222,7 +223,7 @@ class DashboardBatchJudge:
     
     def _read_cases_from_excel(self, excel_path):
         """
-        从 Excel 文件读取 Dashboard 测试用例
+        从 Excel 文件读取 Workflow 测试用例
         
         Args:
             excel_path: Excel 文件路径
@@ -284,7 +285,7 @@ class DashboardBatchJudge:
                                 value = cell_value.text
                         row_data.append(value)
                     rows.append(row_data)
-        
+    
         if not rows:
             raise Exception("未读取到数据")
         
@@ -339,7 +340,7 @@ class DashboardBatchJudge:
                 after_base_tokens = after_base_tokens[:len(queries)]
             
             case = {
-                "id": f"dashboard_test_{i:03d}",
+                "id": f"workflow_test_{i:03d}",
                 "query": queries,
                 "beforeBaseToken": before_base_token,
                 "afterBaseToken": after_base_tokens
@@ -350,7 +351,7 @@ class DashboardBatchJudge:
     
     def read_cases_from_file(self, file_path):
         """
-        从文件读取 Dashboard 测试用例（支持 CSV 和 Excel 格式）
+        从文件读取 Workflow 测试用例（支持 CSV 和 Excel 格式）
         
         Args:
             file_path: 文件路径
@@ -382,9 +383,9 @@ class DashboardBatchJudge:
                               f"CSV 解析错误: {str(csv_error)}\n"
                               f"请确保文件是正确的 CSV 或 Excel 格式")
     
-    def send_request(self, cases, agent="dashboard", concurrency=5):
+    def send_request(self, cases, agent="workflow", concurrency=5):
         """
-        发送 Dashboard 批量测试请求
+        发送 Workflow 批量测试请求
         
         Args:
             cases: 测试用例列表
@@ -408,7 +409,7 @@ class DashboardBatchJudge:
             "x-judge-api-key": api_key
         }
         
-        # 构建请求体 - Dashboard 特殊格式（不需要 mode）
+        # 构建请求体 - Workflow 特殊格式（支持多轮对话，不需要 mode）
         # 给每个 case 加上 options
         cases_with_options = []
         for case in cases:

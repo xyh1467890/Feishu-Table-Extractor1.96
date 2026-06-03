@@ -309,7 +309,7 @@ class BatchJudge:
         
         # 构建请求体
         if agent == "building":
-            # Building agent 特殊格式
+            # Building agent 特殊格式（需要 dimensions 和 mode）
             data = {
                 "agent": agent,
                 "cases": cases,
@@ -320,13 +320,12 @@ class BatchJudge:
                 }
             }
         else:
-            # 非 building agent 格式
+            # 非 building agent 格式（不需要 mode）
             data = {
                 "agent": agent,
                 "cases": cases,
                 "options": {
-                    "concurrency": concurrency,
-                    "mode": mode
+                    "concurrency": concurrency
                 }
             }
         

@@ -19,6 +19,10 @@ from PyQt5.QtGui import QFont
 
 from building_spec.batch_judge import BatchJudge
 from building_spec.dashboard_judge import DashboardBatchJudge
+from building_spec.workflow_judge import WorkflowBatchJudge
+from building_spec.block_judge import BlockBatchJudge
+from building_spec.permission_judge import PermissionBatchJudge
+from building_spec.table_judge import TableBatchJudge
 from config.settings import get_judge_api_key, set_judge_api_key
 
 
@@ -34,6 +38,10 @@ class BatchJudgeDialog(QDialog):
         self.is_processing = False
         self.batch_judge = BatchJudge()
         self.dashboard_batch_judge = DashboardBatchJudge()
+        self.workflow_batch_judge = WorkflowBatchJudge()
+        self.block_batch_judge = BlockBatchJudge()
+        self.permission_batch_judge = PermissionBatchJudge()
+        self.table_batch_judge = TableBatchJudge()
         self.init_ui()
     
     def init_ui(self):
@@ -652,8 +660,17 @@ class BatchJudgeDialog(QDialog):
         self.append_result("状态", {"message": "正在读取测试用例文件..."})
         
         try:
-            if agent in ["permission", "table", "dashboard", "workflow", "block"]:
+            # Dashboard, Workflow, Block, Permission, Table 使用特殊的用例格式（支持多轮对话）
+            if agent == "dashboard":
                 cases = self.dashboard_batch_judge.read_cases_from_file(self.file_path)
+            elif agent == "workflow":
+                cases = self.workflow_batch_judge.read_cases_from_file(self.file_path)
+            elif agent == "block":
+                cases = self.block_batch_judge.read_cases_from_file(self.file_path)
+            elif agent == "permission":
+                cases = self.permission_batch_judge.read_cases_from_file(self.file_path)
+            elif agent == "table":
+                cases = self.table_batch_judge.read_cases_from_file(self.file_path)
             else:
                 cases = self.batch_judge.read_cases_from_file(self.file_path)
             self.append_result("读取结果", {"message": f"成功读取 {len(cases)} 个测试用例", "case_count": len(cases)})
@@ -668,17 +685,53 @@ class BatchJudgeDialog(QDialog):
         # 发送批量请求
         self.append_result("状态", {"message": "正在发送批量请求..."})
         
-        if agent in ["permission", "table", "dashboard", "workflow", "block"]:
+        # Dashboard, Workflow, Block, Permission 使用特殊的请求格式（不需要 mode，options 在 case 里面，支持多轮对话）
+        if agent == "dashboard":
             result = self.dashboard_batch_judge.send_request(
                 cases=cases,
                 agent=agent,
                 concurrency=concurrency
             )
-        else:
+        elif agent == "workflow":
+            result = self.workflow_batch_judge.send_request(
+                cases=cases,
+                agent=agent,
+                concurrency=concurrency
+            )
+        elif agent == "block":
+            result = self.block_batch_judge.send_request(
+                cases=cases,
+                agent=agent,
+                concurrency=concurrency
+            )
+        elif agent == "permission":
+            result = self.permission_batch_judge.send_request(
+                cases=cases,
+                agent=agent,
+                concurrency=concurrency
+            )
+        elif agent == "table":
+            # Table agent 使用特殊格式（不需要 mode，options 在顶层，支持多轮对话）
+            result = self.table_batch_judge.send_request(
+                cases=cases,
+                agent=agent,
+                concurrency=concurrency
+            )
+        elif agent == "building":
+            # Building agent 需要 dimensions 和 mode
             result = self.batch_judge.send_request(
                 cases=cases,
                 agent=agent,
                 dimensions=dimensions,
+                concurrency=concurrency,
+                mode=mode
+            )
+        else:
+            # 其他 agent 使用标准格式（不需要 mode）
+            result = self.batch_judge.send_request(
+                cases=cases,
+                agent=agent,
+                dimensions=None,
                 concurrency=concurrency,
                 mode=mode
             )

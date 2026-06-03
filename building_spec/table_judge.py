@@ -1,6 +1,7 @@
 """
-Dashboard 评测逻辑模块
-负责处理 Dashboard 场景的单条和批量测试
+Table 评测逻辑模块
+负责处理 Table 场景的单条和批量测试
+支持多轮对话格式
 """
 import requests
 import json
@@ -14,21 +15,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import get_judge_api_key, JUDGE_API_URL
 
 
-class DashboardSingleJudge:
-    """Dashboard 单条测试类"""
+class TableSingleJudge:
+    """Table 单条测试类"""
     
     def __init__(self):
         self.is_running = False
     
-    def send_request(self, queries, before_base_token, after_base_tokens=None, 
-                     agent="dashboard", concurrency=5):
+    def send_request(self, queries, before_base_token, base_tokens=None, 
+                     agent="table", concurrency=5):
         """
-        发送 Dashboard 单条测试请求
+        发送 Table 单条测试请求
         
         Args:
             queries: 查询列表（支持多轮），例如 ["第一轮", "第二轮"]
             before_base_token: 前置的 Base Token
-            after_base_tokens: 后置的 Base Token 列表（多轮），如果不传则和 queries 长度一致
+            base_tokens: 目标的 Base Token 列表（多轮），如果不传则和 queries 长度一致
             agent: Agent 类型
             concurrency: 并发数
         
@@ -44,33 +45,33 @@ class DashboardSingleJudge:
                 "message": "请在 Building 机评界面中配置 JUDGE_API_KEY"
             }
         
-        # 如果没有提供 after_base_tokens，创建一个空列表
-        if after_base_tokens is None:
-            after_base_tokens = [""] * len(queries)
+        # 如果没有提供 base_tokens，创建一个空列表
+        if base_tokens is None:
+            base_tokens = [""] * len(queries)
         
-        # 确保 after_base_tokens 的长度和 queries 一致
-        if len(after_base_tokens) < len(queries):
-            after_base_tokens.extend([""] * (len(queries) - len(after_base_tokens)))
-        elif len(after_base_tokens) > len(queries):
-            after_base_tokens = after_base_tokens[:len(queries)]
+        # 确保 base_tokens 的长度和 queries 一致
+        if len(base_tokens) < len(queries):
+            base_tokens.extend([""] * (len(queries) - len(base_tokens)))
+        elif len(base_tokens) > len(queries):
+            base_tokens = base_tokens[:len(queries)]
         
         headers = {
             "Content-Type": "application/json",
             "x-judge-api-key": api_key
         }
         
-        # 构建请求体 - Dashboard 特殊格式（不需要 mode）
+        # 构建请求体 - Table 特殊格式（支持多轮对话，不需要 mode，options 在顶层）
         data = {
             "agent": agent,
             "cases": [{
-                "id": "dashboard_multi_turn_001",
+                "id": "table_multi_turn_001",
                 "query": queries,
                 "beforeBaseToken": before_base_token,
-                "afterBaseToken": after_base_tokens,
-                "options": {
-                    "concurrency": concurrency
-                }
-            }]
+                "baseToken": base_tokens
+            }],
+            "options": {
+                "concurrency": concurrency
+            }
         }
         
         try:
@@ -115,20 +116,20 @@ class DashboardSingleJudge:
         return result
 
 
-class DashboardBatchJudge:
-    """Dashboard 批量测试类"""
+class TableBatchJudge:
+    """Table 批量测试类"""
     
     def __init__(self):
         self.is_running = False
     
     def _read_cases_from_csv(self, csv_path):
         """
-        从 CSV 文件读取 Dashboard 测试用例
+        从 CSV 文件读取 Table 测试用例
         
         CSV 格式要求:
-        - query: 查询内容（多轮用换行分隔）
-        - beforeBaseToken: 前置的 Base Token
-        - afterBaseToken: 后置的 Base Token（多轮用换行分隔）
+            - query: 查询内容（多轮用换行分隔）
+            - beforeBaseToken: 前置的 Base Token
+            - baseToken: 目标的 Base Token（多轮用换行分隔）
         
         Args:
             csv_path: CSV 文件路径
@@ -164,7 +165,7 @@ class DashboardBatchJudge:
         headers = rows[0] if rows else []
         query_col = None
         before_base_token_col = None
-        after_base_token_col = None
+        base_token_col = None
         
         for idx, header in enumerate(headers):
             header_lower = str(header).lower()
@@ -172,8 +173,8 @@ class DashboardBatchJudge:
                 query_col = idx
             if header and ("beforebasetoken" in header_lower or "before_base_token" in header_lower):
                 before_base_token_col = idx
-            if header and ("afterbasetoken" in header_lower or "after_base_token" in header_lower):
-                after_base_token_col = idx
+            if header and ("basetoken" in header_lower or "base_token" in header_lower):
+                base_token_col = idx
         
         # 获取实际的表头名称列表
         actual_headers = [str(h) if h else "空" for h in headers]
@@ -198,23 +199,23 @@ class DashboardBatchJudge:
             # 获取 beforeBaseToken
             before_base_token = str(row[before_base_token_col] or "") if len(row) > before_base_token_col else ""
             
-            # 获取 afterBaseToken（支持多轮，用换行分隔）
-            after_base_tokens = []
-            if after_base_token_col is not None and len(row) > after_base_token_col:
-                after_str = str(row[after_base_token_col] or "")
-                after_base_tokens = [a.strip() for a in after_str.split('\n')]
+            # 获取 baseToken（支持多轮，用换行分隔）
+            base_tokens = []
+            if base_token_col is not None and len(row) > base_token_col:
+                base_token_str = str(row[base_token_col] or "")
+                base_tokens = [b.strip() for b in base_token_str.split('\n')]
             
-            # 确保 after_base_tokens 和 queries 长度一致
-            while len(after_base_tokens) < len(queries):
-                after_base_tokens.append("")
-            if len(after_base_tokens) > len(queries):
-                after_base_tokens = after_base_tokens[:len(queries)]
+            # 确保 base_tokens 和 queries 长度一致
+            while len(base_tokens) < len(queries):
+                base_tokens.append("")
+            if len(base_tokens) > len(queries):
+                base_tokens = base_tokens[:len(queries)]
             
             case = {
-                "id": f"dashboard_test_{i:03d}",
+                "id": f"table_test_{i:03d}",
                 "query": queries,
                 "beforeBaseToken": before_base_token,
-                "afterBaseToken": after_base_tokens
+                "baseToken": base_tokens
             }
             cases.append(case)
         
@@ -222,7 +223,7 @@ class DashboardBatchJudge:
     
     def _read_cases_from_excel(self, excel_path):
         """
-        从 Excel 文件读取 Dashboard 测试用例
+        从 Excel 文件读取 Table 测试用例
         
         Args:
             excel_path: Excel 文件路径
@@ -292,7 +293,7 @@ class DashboardBatchJudge:
         headers = rows[0] if rows else []
         query_col = None
         before_base_token_col = None
-        after_base_token_col = None
+        base_token_col = None
         
         for idx, header in enumerate(headers):
             header_lower = str(header).lower() if header else ""
@@ -300,8 +301,8 @@ class DashboardBatchJudge:
                 query_col = idx
             if header and ("beforebasetoken" in header_lower or "before_base_token" in header_lower):
                 before_base_token_col = idx
-            if header and ("afterbasetoken" in header_lower or "after_base_token" in header_lower):
-                after_base_token_col = idx
+            if header and ("basetoken" in header_lower or "base_token" in header_lower):
+                base_token_col = idx
         
         # 获取实际的表头名称列表
         actual_headers = [str(h) if h else "空" for h in headers]
@@ -326,23 +327,23 @@ class DashboardBatchJudge:
             # 获取 beforeBaseToken
             before_base_token = str(row[before_base_token_col] or "") if len(row) > before_base_token_col else ""
             
-            # 获取 afterBaseToken（支持多轮，用换行分隔）
-            after_base_tokens = []
-            if after_base_token_col is not None and len(row) > after_base_token_col:
-                after_str = str(row[after_base_token_col] or "")
-                after_base_tokens = [a.strip() for a in after_str.split('\n')]
+            # 获取 baseToken（支持多轮，用换行分隔）
+            base_tokens = []
+            if base_token_col is not None and len(row) > base_token_col:
+                base_token_str = str(row[base_token_col] or "")
+                base_tokens = [b.strip() for b in base_token_str.split('\n')]
             
-            # 确保 after_base_tokens 和 queries 长度一致
-            while len(after_base_tokens) < len(queries):
-                after_base_tokens.append("")
-            if len(after_base_tokens) > len(queries):
-                after_base_tokens = after_base_tokens[:len(queries)]
+            # 确保 base_tokens 和 queries 长度一致
+            while len(base_tokens) < len(queries):
+                base_tokens.append("")
+            if len(base_tokens) > len(queries):
+                base_tokens = base_tokens[:len(queries)]
             
             case = {
-                "id": f"dashboard_test_{i:03d}",
+                "id": f"table_test_{i:03d}",
                 "query": queries,
                 "beforeBaseToken": before_base_token,
-                "afterBaseToken": after_base_tokens
+                "baseToken": base_tokens
             }
             cases.append(case)
         
@@ -350,7 +351,7 @@ class DashboardBatchJudge:
     
     def read_cases_from_file(self, file_path):
         """
-        从文件读取 Dashboard 测试用例（支持 CSV 和 Excel 格式）
+        从文件读取 Table 测试用例（支持 CSV 和 Excel 格式）
         
         Args:
             file_path: 文件路径
@@ -382,9 +383,9 @@ class DashboardBatchJudge:
                               f"CSV 解析错误: {str(csv_error)}\n"
                               f"请确保文件是正确的 CSV 或 Excel 格式")
     
-    def send_request(self, cases, agent="dashboard", concurrency=5):
+    def send_request(self, cases, agent="table", concurrency=5):
         """
-        发送 Dashboard 批量测试请求
+        发送 Table 批量测试请求
         
         Args:
             cases: 测试用例列表
@@ -408,19 +409,13 @@ class DashboardBatchJudge:
             "x-judge-api-key": api_key
         }
         
-        # 构建请求体 - Dashboard 特殊格式（不需要 mode）
-        # 给每个 case 加上 options
-        cases_with_options = []
-        for case in cases:
-            case_copy = case.copy()
-            case_copy["options"] = {
-                "concurrency": concurrency
-            }
-            cases_with_options.append(case_copy)
-        
+        # 构建请求体 - Table 特殊格式（支持多轮对话，不需要 mode，options 在顶层）
         data = {
             "agent": agent,
-            "cases": cases_with_options
+            "cases": cases,
+            "options": {
+                "concurrency": concurrency
+            }
         }
         
         try:
